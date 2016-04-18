@@ -9,7 +9,7 @@ if __name__ == '__main__':
                     ('B', 'C'),
                     ('C', 'A'),
                     ('C', 'B')])
-    #wot.draw()
+    wot.draw()
     wot.prepare_next_turn()
     wot.add_identity('D')
     wot.add_link('A', 'D')
@@ -18,4 +18,4 @@ if __name__ == '__main__':
     wot.next_turn()
     wot.next_turn()
     wot.next_turn()
-    #wot.draw()
+    wot.draw()
