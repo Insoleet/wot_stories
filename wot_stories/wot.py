@@ -1,4 +1,5 @@
 import networkx
+from numpy import linspace
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -21,6 +22,7 @@ class WoT:
 
         self.fig = plt.figure()
         self.ax = self.fig.gca(projection='3d')
+        self.history = {}
 
     def initialize(self, idties, links):
         for idty in idties:
@@ -36,10 +38,12 @@ class WoT:
             if enough_certs:
                 print("{0} joined successfully on init".format(node))
                 self.members.append(node)
+                self.history[node] = (self.turn, self.turn)
             else:
                 print("Warning : {0} did not join during init".format(node))
+        self._prepare_next_turn()
 
-    def prepare_next_turn(self):
+    def _prepare_next_turn(self):
         self.next_wot = self.wot.copy()
         self.next_members = self.members.copy()
 
@@ -99,16 +103,22 @@ class WoT:
             if link[0] in self.next_members and not self.can_join(self.next_wot, link[0]):
                 print("{0} : Left community".format(link[0]))
                 self.next_members.remove(link[0])
+                self.history[link[0]] = (self.history[link[0]][0], self.turn)
 
         self.wot = self.next_wot
         self.members = self.next_members
+        self._prepare_next_turn()
 
     def draw(self):
         pos = graphviz_layout(self.wot, "twopi")
 
-        for n in self.wot.nodes():
-            self.ax.scatter(pos[n][0], pos[n][1], self.turn*10)
+        for n in self.history:
+            nbpoints = (self.history[n][1] - self.history[n][0])*10
+            zline = linspace(self.history[n][0], self.history[n][1], nbpoints)
+            xline = linspace(pos[n][0], pos[n][0], nbpoints)
+            yline = linspace(pos[n][1], pos[n][1], nbpoints)
+            self.ax.plot(xline, zline, yline, zdir='y', linewidth=2, label=n)
 
-        self.ax.set_xlim3d(-5, 100)
-        self.ax.set_ylim3d(-5, 100)
+        self.ax.set_xlim3d(-5, max([p[0] for p in pos.values()]))
+        self.ax.set_ylim3d(-5, max([p[1] for p in pos.values()]))
         self.ax.set_zlim3d(-5, (self.turn+1)*10)

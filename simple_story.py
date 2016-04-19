@@ -9,8 +9,6 @@ if __name__ == '__main__':
                     ('B', 'C'),
                     ('C', 'A'),
                     ('C', 'B')])
-    wot.draw()
-    wot.prepare_next_turn()
     wot.add_identity('D')
     wot.add_link('A', 'D')
     wot.add_link('B', 'D')
