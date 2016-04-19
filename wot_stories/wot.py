@@ -58,7 +58,7 @@ class WoT:
             return
 
         print(out_links)
-        if len(out_links) > 0 and max([l[2]['time'] for l in out_links]) + self.sig_window < self.turn:
+        if len(out_links) > 0 and max([l[2]['time'] for l in out_links]) + self.sig_window > self.turn:
             print("{0} -> {1} : Latest certification is too recent".format(from_idty, to_idty))
             return
 
@@ -67,6 +67,7 @@ class WoT:
 
         if to_idty not in self.next_members and self.can_join(self.next_wot, to_idty):
             print("{0} : Joining members".format(to_idty))
+            self.history[to_idty] = (self.turn, self.turn)
             self.next_members.append(to_idty)
 
     def can_join(self, wot, idty):
@@ -111,11 +112,15 @@ class WoT:
         self._prepare_next_turn()
 
     def draw(self, zscale=1):
+        for n in self.history:
+            if self.history[n][0] == self.history[n][1]:
+                self.history[n] = self.history[n][0], self.turn
+
         pos = graphviz_layout(self.wot, "twopi")
 
         for n in self.history:
             nbpoints = (self.history[n][1] - self.history[n][0])*zscale
-            zline = linspace(self.history[n][0], self.history[n][1], nbpoints)
+            zline = linspace(self.history[n][0]*zscale, self.history[n][1]*zscale, nbpoints)
             xline = linspace(pos[n][0], pos[n][0], nbpoints)
             yline = linspace(pos[n][1], pos[n][1], nbpoints)
             self.ax.plot(xline, zline, yline, zdir='y', linewidth=2, label=n)

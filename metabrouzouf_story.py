@@ -37,8 +37,10 @@ def from_sqlite(wot, filepath):
     identities, certs = parse_block(wot, block_zero, id_col, cert_col)
     wot.initialize(identities, certs)
     fetching = True
+    count = 0
     while fetching:
         blocks = cursor.fetchmany(50)
+        count += 50
         for b in blocks:
             identities, certs = parse_block(wot, b, id_col, cert_col)
             for i in identities:
@@ -48,13 +50,13 @@ def from_sqlite(wot, filepath):
                 wot.add_link(c[0], c[1])
 
             wot.next_turn()
-        if len(blocks) < 50:
+        if len(blocks) < 50 or count > 20000:
             fetching = False
 
     conn.close()
 
 if __name__ == '__main__':
     wot = WoT(sig_period=0, sig_stock=100, sig_window=0, sig_validity=10800, sig_qty=3, xpercent=1, steps_max=3)
-    from_sqlite(wot, 'ucoin.db')
-    wot.draw(0.1)
+    from_sqlite(wot, 'metabrouzouf.db')
+    wot.draw(0.01)
     plt.show()
