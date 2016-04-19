@@ -58,7 +58,7 @@ class WoT:
             return
 
         print(out_links)
-        if max([l[2]['time'] for l in out_links]) + self.sig_window < self.turn:
+        if len(out_links) > 0 and max([l[2]['time'] for l in out_links]) + self.sig_window < self.turn:
             print("{0} -> {1} : Latest certification is too recent".format(from_idty, to_idty))
             return
 
@@ -103,17 +103,18 @@ class WoT:
             if link[0] in self.next_members and not self.can_join(self.next_wot, link[0]):
                 print("{0} : Left community".format(link[0]))
                 self.next_members.remove(link[0])
-                self.history[link[0]] = (self.history[link[0]][0], self.turn)
+                if link[0] in self.history:
+                    self.history[link[0]] = (self.history[link[0]][0], self.turn)
 
         self.wot = self.next_wot
         self.members = self.next_members
         self._prepare_next_turn()
 
-    def draw(self):
+    def draw(self, zscale=1):
         pos = graphviz_layout(self.wot, "twopi")
 
         for n in self.history:
-            nbpoints = (self.history[n][1] - self.history[n][0])*10
+            nbpoints = (self.history[n][1] - self.history[n][0])*zscale
             zline = linspace(self.history[n][0], self.history[n][1], nbpoints)
             xline = linspace(pos[n][0], pos[n][0], nbpoints)
             yline = linspace(pos[n][1], pos[n][1], nbpoints)
@@ -121,4 +122,4 @@ class WoT:
 
         self.ax.set_xlim3d(-5, max([p[0] for p in pos.values()]))
         self.ax.set_ylim3d(-5, max([p[1] for p in pos.values()]))
-        self.ax.set_zlim3d(-5, (self.turn+1)*10)
+        self.ax.set_zlim3d(-5, (self.turn+1)*zscale)

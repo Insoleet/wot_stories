@@ -16,5 +16,5 @@ if __name__ == '__main__':
     wot.next_turn()
     wot.next_turn()
     wot.next_turn()
-    wot.draw()
+    wot.draw(10)
     plt.show()
