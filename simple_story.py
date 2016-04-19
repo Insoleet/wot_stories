@@ -1,4 +1,4 @@
-from wot_stories.wot import WoT
+from wot_stories.wot import WoT, plt
 
 if __name__ == '__main__':
     wot = WoT(sig_period=2, sig_stock=5, sig_window=2, sig_validity=3, sig_qty=2, xpercent=0.9, steps_max=2)
@@ -19,3 +19,4 @@ if __name__ == '__main__':
     wot.next_turn()
     wot.next_turn()
     wot.draw()
+    plt.show()

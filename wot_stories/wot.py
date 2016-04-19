@@ -1,4 +1,8 @@
 import networkx
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+from networkx.drawing.nx_agraph import graphviz_layout
 
 class WoT:
     def __init__(self, sig_period, sig_stock, sig_window, sig_validity, sig_qty, xpercent, steps_max):
@@ -14,6 +18,9 @@ class WoT:
         self.members = []
         self.next_members = []
         self.turn = 0
+
+        self.fig = plt.figure()
+        self.ax = self.fig.gca(projection='3d')
 
     def initialize(self, idties, links):
         for idty in idties:
@@ -97,7 +104,11 @@ class WoT:
         self.members = self.next_members
 
     def draw(self):
-        #from networkx.drawing.nx_agraph import graphviz_layout
-        #pos = graphviz_layout(self.wot, "twopi")
-        #networkx.draw(self.wot, pos)
-        networkx.draw_shell(self.wot)
+        pos = graphviz_layout(self.wot, "twopi")
+
+        for n in self.wot.nodes():
+            self.ax.scatter(pos[n][0], pos[n][1], self.turn*10)
+
+        self.ax.set_xlim3d(-5, 100)
+        self.ax.set_ylim3d(-5, 100)
+        self.ax.set_zlim3d(-5, (self.turn+1)*10)
