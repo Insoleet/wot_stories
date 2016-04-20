@@ -71,14 +71,16 @@ class WoT:
             self.next_members.append(to_idty)
 
     def can_join(self, wot, idty):
-        linked = networkx.floyd_warshall_predecessor_and_distance(wot.reverse(copy=True), idty)
-        linked_in_range = [l for l in linked[1][idty] if l in self.members and linked[1][idty][l] <= self.steps_max]
+        linked = networkx.predecessor(wot.reverse(copy=True), idty, cutoff=self.steps_max)
+        sentries = [m for m in self.members if len(wot.out_edges(m)) > 0]
+        linked_in_range = [l for l in linked if l in sentries
+                           and l != idty]
 
-        enough_sentries = len(linked_in_range) >= len(self.members)*self.xpercent
+        enough_sentries = len(linked_in_range) >= len(sentries)*self.xpercent
         if not enough_sentries:
             print("{0} : Cannot join : not enough sentries ({1}/{2})".format(idty,
                                                                              len(linked_in_range),
-                                                                             len(self.members)*self.xpercent))
+                                                                             len(sentries)*self.xpercent))
 
         enough_certs = len(wot.in_edges(idty)) >= self.sig_qty
         if not enough_certs:
