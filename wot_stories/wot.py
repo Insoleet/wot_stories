@@ -23,6 +23,7 @@ class WoT:
         self.fig = plt.figure()
         self.ax = self.fig.gca(projection='3d')
         self.history = {}
+        self.past_links = []
 
     def initialize(self, idties, links):
         for idty in idties:
@@ -32,6 +33,7 @@ class WoT:
         for link in links:
             print("{0} -> {1} - Add certification during init".format(link[0], link[1]))
             self.wot.add_edge(link[0], link[1], {'time': 0})
+            self.past_links.append((0, link[0], link[1]))
 
         for node in self.wot.nodes():
             enough_certs = len(self.wot.in_edges(node)) >= self.sig_qty
@@ -66,6 +68,7 @@ class WoT:
 
         print("{0} -> {1} : Adding certification".format(from_idty, to_idty))
         self.next_wot.add_edge(from_idty, to_idty, attr_dict={'time': self.turn})
+        self.past_links.append((self.turn, from_idty, to_idty))
 
         if to_idty not in self.next_members and self.can_join(self.next_wot, to_idty):
             print("{0} : Joining members".format(to_idty))
@@ -122,15 +125,26 @@ class WoT:
             if len(self.history[n]) % 2 != 0:
                 self.history[n].append(self.turn)
         pos = graphviz_layout(self.wot, "twopi")
+        colors = {}
 
         for n in self.history:
             periods = list(zip(self.history[n], self.history[n][1:]))[::2]
             for p in periods:
-                nbpoints = (p[1] - p[0])*zscale
+                nbpoints = abs(p[1] - p[0])*zscale
                 zline = linspace(p[0]*zscale, p[1]*zscale, nbpoints)
                 xline = linspace(pos[n][0], pos[n][0], nbpoints)
                 yline = linspace(pos[n][1], pos[n][1], nbpoints)
-                self.ax.plot(xline, zline, yline, zdir='y', linewidth=2, label=n)
+                plot = self.ax.plot(xline, zline, yline, zdir='y', linewidth=2, label=n)
+                colors[n] = plot[0]._color
+
+        for link in self.past_links:
+            nbpoints = abs(pos[link[2]][0] - pos[link[1]][1])*zscale
+            zline = linspace(link[0]*zscale, link[0]*zscale, nbpoints)
+            xline = linspace(pos[link[2]][0], pos[link[1]][0], nbpoints)
+            yline = linspace(pos[link[2]][1], pos[link[1]][1], nbpoints)
+            if link[1] in colors:
+                self.ax.plot(xline, zline, yline, zdir='y', color=colors[link[1]], alpha=0.3)
+
             #txt = self.ax.text(pos[n][0], pos[n][1], self.history[n][0]*zscale, n[:5], 'z')
 
         self.ax.set_xlim3d(-5, max([p[0] for p in pos.values()]))
