@@ -126,6 +126,7 @@ class WoT:
             xline = linspace(pos[n][0], pos[n][0], nbpoints)
             yline = linspace(pos[n][1], pos[n][1], nbpoints)
             self.ax.plot(xline, zline, yline, zdir='y', linewidth=2, label=n)
+            #txt = self.ax.text(pos[n][0], pos[n][1], self.history[n][0]*zscale, n[:5], 'z')
 
         self.ax.set_xlim3d(-5, max([p[0] for p in pos.values()]))
         self.ax.set_ylim3d(-5, max([p[1] for p in pos.values()]))
