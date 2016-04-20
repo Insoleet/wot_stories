@@ -38,7 +38,9 @@ class WoT:
             if enough_certs:
                 print("{0} joined successfully on init".format(node))
                 self.members.append(node)
-                self.history[node] = (self.turn, self.turn)
+                if node not in self.history:
+                    self.history[node] = []
+                self.history[node].append(self.turn)
             else:
                 print("Warning : {0} did not join during init".format(node))
         self._prepare_next_turn()
@@ -67,7 +69,9 @@ class WoT:
 
         if to_idty not in self.next_members and self.can_join(self.next_wot, to_idty):
             print("{0} : Joining members".format(to_idty))
-            self.history[to_idty] = (self.turn, self.turn)
+            if to_idty not in self.history:
+                self.history[to_idty] = []
+            self.history[to_idty].append(self.turn)
             self.next_members.append(to_idty)
 
     def can_join(self, wot, idty):
@@ -107,7 +111,7 @@ class WoT:
                 print("{0} : Left community".format(link[0]))
                 self.next_members.remove(link[0])
                 if link[0] in self.history:
-                    self.history[link[0]] = (self.history[link[0]][0], self.turn)
+                    self.history[link[0]].append(self.turn)
 
         self.wot = self.next_wot
         self.members = self.next_members
@@ -115,17 +119,18 @@ class WoT:
 
     def draw(self, zscale=1):
         for n in self.history:
-            if self.history[n][0] == self.history[n][1]:
-                self.history[n] = self.history[n][0], self.turn
-
+            if len(self.history[n]) % 2 != 0:
+                self.history[n].append(self.turn)
         pos = graphviz_layout(self.wot, "twopi")
 
         for n in self.history:
-            nbpoints = (self.history[n][1] - self.history[n][0])*zscale
-            zline = linspace(self.history[n][0]*zscale, self.history[n][1]*zscale, nbpoints)
-            xline = linspace(pos[n][0], pos[n][0], nbpoints)
-            yline = linspace(pos[n][1], pos[n][1], nbpoints)
-            self.ax.plot(xline, zline, yline, zdir='y', linewidth=2, label=n)
+            periods = list(zip(self.history[n], self.history[n][1:]))[::2]
+            for p in periods:
+                nbpoints = (p[1] - p[0])*zscale
+                zline = linspace(p[0]*zscale, p[1]*zscale, nbpoints)
+                xline = linspace(pos[n][0], pos[n][0], nbpoints)
+                yline = linspace(pos[n][1], pos[n][1], nbpoints)
+                self.ax.plot(xline, zline, yline, zdir='y', linewidth=2, label=n)
             #txt = self.ax.text(pos[n][0], pos[n][1], self.history[n][0]*zscale, n[:5], 'z')
 
         self.ax.set_xlim3d(-5, max([p[0] for p in pos.values()]))

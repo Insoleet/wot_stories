@@ -50,7 +50,7 @@ def from_sqlite(wot, filepath):
                 wot.add_link(c[0], c[1])
 
             wot.next_turn()
-        if len(blocks) < 50:
+        if len(blocks) < 50 or count > 20000:
             fetching = False
 
     conn.close()
