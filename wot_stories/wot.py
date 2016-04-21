@@ -134,13 +134,13 @@ class WoT:
         pos = graphviz_layout(self.wot, "twopi")
 
         for n in self.history:
-            periods = list(zip(self.history[n], self.history[n][1:]))[::2]
-            for p in periods:
+            periods = list(zip(self.history[n], self.history[n][1:]))
+            for i, p in enumerate(periods):
                 nbpoints = abs(p[1] - p[0])*zscale
                 zline = linspace(p[0]*zscale, p[1]*zscale, nbpoints)
                 xline = linspace(pos[n][0], pos[n][0], nbpoints)
                 yline = linspace(pos[n][1], pos[n][1], nbpoints)
-                plot = self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[n][0])
+                plot = self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[n][0], alpha=1/(i % 2 + 1))
 
         if False:
             for link in self.past_links:
