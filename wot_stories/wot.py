@@ -1,6 +1,7 @@
 import networkx
 from numpy import linspace
 from matplotlib import pyplot as plt
+from matplotlib import colors
 from mpl_toolkits.mplot3d import Axes3D
 
 from networkx.drawing.nx_agraph import graphviz_layout
@@ -24,6 +25,9 @@ class WoT:
         self.ax = self.fig.gca(projection='3d')
         self.history = {}
         self.past_links = []
+        self.colors = {}
+        self.color_iter = iter(colors.cnames.items())
+        self.layouts = []
 
     def initialize(self, idties, links):
         for idty in idties:
@@ -42,6 +46,7 @@ class WoT:
                 self.members.append(node)
                 if node not in self.history:
                     self.history[node] = []
+                    self.colors[node] = next(self.color_iter)
                 self.history[node].append(self.turn)
             else:
                 print("Warning : {0} did not join during init".format(node))
@@ -74,6 +79,7 @@ class WoT:
             print("{0} : Joining members".format(to_idty))
             if to_idty not in self.history:
                 self.history[to_idty] = []
+                self.colors[to_idty] = next(self.color_iter)
             self.history[to_idty].append(self.turn)
             self.next_members.append(to_idty)
 
@@ -118,6 +124,7 @@ class WoT:
 
         self.wot = self.next_wot
         self.members = self.next_members
+        #elf.layouts.append(graphviz_layout(self.wot, "twopi"))
         self._prepare_next_turn()
 
     def draw(self, zscale=1):
@@ -125,7 +132,6 @@ class WoT:
             if len(self.history[n]) % 2 != 0:
                 self.history[n].append(self.turn)
         pos = graphviz_layout(self.wot, "twopi")
-        colors = {}
 
         for n in self.history:
             periods = list(zip(self.history[n], self.history[n][1:]))[::2]
@@ -134,16 +140,16 @@ class WoT:
                 zline = linspace(p[0]*zscale, p[1]*zscale, nbpoints)
                 xline = linspace(pos[n][0], pos[n][0], nbpoints)
                 yline = linspace(pos[n][1], pos[n][1], nbpoints)
-                plot = self.ax.plot(xline, zline, yline, zdir='y', linewidth=2, label=n)
-                colors[n] = plot[0]._color
+                plot = self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[n][0])
 
-        for link in self.past_links:
-            nbpoints = abs(pos[link[2]][0] - pos[link[1]][1])*zscale
-            zline = linspace(link[0]*zscale, link[0]*zscale, nbpoints)
-            xline = linspace(pos[link[2]][0], pos[link[1]][0], nbpoints)
-            yline = linspace(pos[link[2]][1], pos[link[1]][1], nbpoints)
-            if link[1] in colors:
-                self.ax.plot(xline, zline, yline, zdir='y', color=colors[link[1]], alpha=0.3)
+        if False:
+            for link in self.past_links:
+                nbpoints = abs(pos[link[2]][0] - pos[link[1]][1])*zscale
+                zline = linspace(link[0]*zscale, link[0]*zscale, nbpoints)
+                xline = linspace(pos[link[2]][0], pos[link[1]][0], nbpoints)
+                yline = linspace(pos[link[2]][1], pos[link[1]][1], nbpoints)
+                if link[1] in self.colors:
+                    self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[link[1]][0], alpha=0.1)
 
             #txt = self.ax.text(pos[n][0], pos[n][1], self.history[n][0]*zscale, n[:5], 'z')
 
