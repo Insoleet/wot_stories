@@ -7,10 +7,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from networkx.drawing.nx_agraph import graphviz_layout
 
 class WoT:
-    def __init__(self, sig_period, sig_stock, sig_window, sig_validity, sig_qty, xpercent, steps_max):
+    def __init__(self, sig_period, sig_stock, sig_validity, sig_qty, xpercent, steps_max):
         self.sig_period = sig_period
         self.sig_stock = sig_stock
-        self.sig_window = sig_window
         self.sig_validity = sig_validity
         self.sig_qty = sig_qty
         self.xpercent = xpercent
@@ -67,7 +66,7 @@ class WoT:
             return
 
         print(out_links)
-        if len(out_links) > 0 and max([l[2]['time'] for l in out_links]) + self.sig_window > self.turn:
+        if len(out_links) > 0 and max([l[2]['time'] for l in out_links]) + self.sig_period > self.turn:
             print("{0} -> {1} : Latest certification is too recent".format(from_idty, to_idty))
             return
 
@@ -142,14 +141,13 @@ class WoT:
                 yline = linspace(pos[n][1], pos[n][1], nbpoints)
                 plot = self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[n][0], alpha=1/(i % 2 + 1))
 
-        if False:
-            for link in self.past_links:
-                nbpoints = abs(pos[link[2]][0] - pos[link[1]][1])*zscale
-                zline = linspace(link[0]*zscale, link[0]*zscale, nbpoints)
-                xline = linspace(pos[link[2]][0], pos[link[1]][0], nbpoints)
-                yline = linspace(pos[link[2]][1], pos[link[1]][1], nbpoints)
-                if link[1] in self.colors:
-                    self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[link[1]][0], alpha=0.1)
+        for link in self.past_links:
+            nbpoints = abs(pos[link[2]][0] - pos[link[1]][1])*zscale
+            zline = linspace(link[0]*zscale, link[0]*zscale, nbpoints)
+            xline = linspace(pos[link[2]][0], pos[link[1]][0], nbpoints)
+            yline = linspace(pos[link[2]][1], pos[link[1]][1], nbpoints)
+            if link[1] in self.colors:
+                self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[link[1]][0], alpha=0.1)
 
             #txt = self.ax.text(pos[n][0], pos[n][1], self.history[n][0]*zscale, n[:5], 'z')
 
