@@ -23,6 +23,7 @@ def parse_block(wot, block_row, id_col, cert_col):
 
     return identities, certifications
 
+
 def from_sqlite(wot, filepath):
     conn = sqlite3.connect(filepath)
 

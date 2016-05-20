@@ -82,9 +82,22 @@ class WoT:
             self.history[to_idty].append(self.turn)
             self.next_members.append(to_idty)
 
+    def ySentries(self, N):
+        Y = {
+            10: 2,
+            100: 4,
+            1000: 6,
+            10000: 12,
+            100000: 20
+        }
+        for k in reversed(sorted(Y.keys())):
+            if N >= k:
+                return Y[k]
+        return 0
+
     def can_join(self, wot, idty):
         linked = networkx.predecessor(wot.reverse(copy=True), idty, cutoff=self.steps_max)
-        sentries = [m for m in self.members if len(wot.out_edges(m)) > 0]
+        sentries = [m for m in self.members if len(wot.out_edges(m)) > self.ySentries(len(self.members))]
         linked_in_range = [l for l in linked if l in sentries
                            and l != idty]
 
