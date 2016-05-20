@@ -1,10 +1,10 @@
-import networkx
+from graph_tool.all import *
 from numpy import linspace
 from matplotlib import pyplot as plt
 from matplotlib import colors
 from mpl_toolkits.mplot3d import Axes3D
+from itertools import product
 
-from networkx.drawing.nx_agraph import graphviz_layout
 
 class WoT:
     def __init__(self, sig_period, sig_stock, sig_validity, sig_qty, xpercent, steps_max):
@@ -24,8 +24,9 @@ class WoT:
         self.xpercent = xpercent
         self.steps_max = steps_max
 
-        self.wot = networkx.DiGraph()
-        self.next_wot = networkx.DiGraph()
+        self.wot = Graph(directed=True)
+        self.next_wot = Graph(directed=True)
+        self.wot.ep.time = self.wot.new_edge_property("int")
         self.members = []
         self.next_members = []
 
@@ -42,40 +43,43 @@ class WoT:
         self.color_iter = iter(colors.cnames.items())
         self.layouts = []
 
-    def initialize(self, idties, links):
+    def initialize(self, nb_identities):
         """
         Initialize the Wot with first members (typically block 0)
         :param idties: List of pub_keys of identities (still not members)
         :param links: List of certifications ([issuer pub_key, certified pub_key], …)
         """
 
+        identities = []
         # Populate the graph with identities and certifications
-        for idty in idties:
+        for idty in range(0, nb_identities):
             print("{0} - Add identity during init".format(idty))
-            self.wot.add_node(idty)
+            identities.append(int(self.wot.add_vertex()))
 
-        for link in links:
+        init_links = list(product(identities, identities))
+        for link in init_links:
             if link[1] != link[0]:
                 print("{0} -> {1} - Add certification during init".format(link[0], link[1]))
-                self.wot.add_edge(link[0], link[1], {'time': 0})
+                edge = self.wot.add_edge(link[0], link[1])
+                self.wot.ep.time[edge] = 0
                 # Keep track of certifications for future analysis and plotting
                 self.past_links.append((0, link[0], link[1]))
 
         # Check if identities are members according to Wot rules
-        for node in self.wot.nodes():
-            enough_certs = len(self.wot.in_edges(node)) >= self.sig_qty
+        for vertex in self.wot.vertices():
+            enough_certs = vertex.in_degree() >= self.sig_qty
             if enough_certs:
-                print("{0} joined successfully on init".format(node))
-                self.members.append(node)
+                print("{0} joined successfully on init".format(vertex))
+                self.members.append(int(vertex))
 
                 # Keep track of memberships in time
-                if node not in self.history:
-                    self.history[node] = []
-                    self.colors[node] = next(self.color_iter)
-                self.history[node].append(self.turn)
-
+                if vertex not in self.history:
+                    self.history[int(vertex)] = []
+                    self.colors[int(vertex)] = next(self.color_iter)
+                self.history[int(vertex)].append(self.turn)
             else:
-                print("Warning : {0} did not join during init".format(node))
+                print("Warning : {0} did not join during init ({1} certs)".format(int(vertex),
+                                                                                  vertex.in_degree()))
         self._prepare_next_turn()
 
     def _prepare_next_turn(self):
@@ -85,14 +89,15 @@ class WoT:
         self.next_wot = self.wot.copy()
         self.next_members = self.members.copy()
 
-    def add_identity(self, idty):
+    def add_identity(self):
         """
         Add an identity (still not member) to the graph
         :param idty: Public key of an individual
         :return:
         """
-        print("{0} : New identity in the wot".format(idty))
-        self.next_wot.add_node(idty)
+        v = self.next_wot.add_vertex()
+        print("{0} : New identity in the wot".format(int(v)))
+        return int(v)
 
     def add_link(self, from_idty, to_idty):
         """
@@ -101,21 +106,22 @@ class WoT:
         :param to_idty: Public key of the certified individual
         :return:
         """
-
         # Checks the issuer signatures "stock"
-        out_links = self.next_wot.out_edges(from_idty, data=True)
-        if len(out_links) >= self.sig_stock:
+        vertex = self.next_wot.vertex(from_idty)
+        out_links = vertex.out_edges()
+        if vertex.out_degree() >= self.sig_stock:
             print("{0} -> {1} : Too much certifications issued".format(from_idty, to_idty))
             return
 
         # Checks if the issuer has waited enough time since his last certificate before emit a new one
-        if len(out_links) > 0 and max([l[2]['time'] for l in out_links]) + self.sig_period > self.turn:
+        if vertex.out_degree() > 0 and max([self.wot.ep.time[l] for l in out_links]) + self.sig_period > self.turn:
             print("{0} -> {1} : Latest certification is too recent".format(from_idty, to_idty))
             return
 
         # Adds the certificate to the graph and keeps track
         print("{0} -> {1} : Adding certification".format(from_idty, to_idty))
-        self.next_wot.add_edge(from_idty, to_idty, attr_dict={'time': self.turn})
+        edge = self.next_wot.add_edge(from_idty, to_idty)
+        self.next_wot.ep.time[edge] = self.turn
         self.past_links.append((self.turn, from_idty, to_idty))
 
         # Checks if the certified individual must join the wot as a member
@@ -154,13 +160,15 @@ class WoT:
         :param idty:    Pubkey of the candidate
         :return: False or True
         """
-
+        sentries = [m for m in self.members if wot.vertex(m).out_degree() > self.ySentries(len(self.members))]
         # Extract the list of all connected members to idty at steps_max via certificates (edges)
-        linked = networkx.predecessor(wot.reverse(copy=True), idty, cutoff=self.steps_max)
-        sentries = [m for m in self.members if len(wot.out_edges(m)) > self.ySentries(len(self.members))]
-        # List all sentries connected at steps_max from idty
-        linked_in_range = [l for l in linked if l in sentries
-                           and l != idty]
+
+        linked_in_range = []
+        for s in sentries:
+            if graph_tool.topology.shortest_distance(wot,
+                                                 wot.vertex(s),
+                                                 wot.vertex(idty)) <= self.steps_max:
+                linked_in_range.append(s)
 
         # Checks if idty is connected to at least xpercent of sentries
         enough_sentries = len(linked_in_range) >= len(sentries)*self.xpercent
@@ -170,10 +178,10 @@ class WoT:
                                                                              len(sentries)*self.xpercent))
 
         # Checks if idty has enough certificates to be a member
-        enough_certs = len(wot.in_edges(idty)) >= self.sig_qty
+        enough_certs = wot.vertex(idty).in_degree() >= self.sig_qty
         if not enough_certs:
             print("{0} : Cannot join : not enough certifications ({1}/{2}".format(idty,
-                                                                                  len(wot.in_edges(idty)),
+                                                                                  wot.vertex(idty).in_degree(),
                                                                                   self.sig_qty))
 
         return enough_certs and enough_sentries
@@ -185,20 +193,23 @@ class WoT:
         self.turn += 1
         dropped_links = []
         print("== New turn {0} ==".format(self.turn))
+        tmp_wot = self.next_wot.copy()
         # Links expirations
-        for link in self.next_wot.copy().edges(data=True):
-            if self.turn > link[2]['time'] + self.sig_validity:
-                print("{0} -> {1} : Link expired ({2}/{3})".format(link[0], link[1],
-                                                                   self.turn, link[2]['time'] + self.sig_validity))
-                self.next_wot.remove_edge(link[0], link[1])
+        for link in tmp_wot.edges():
+            if self.turn > tmp_wot.ep.time[link] + self.sig_validity:
+                print("{0} -> {1} : Link expired ({2}/{3})".format(int(link.source()), int(link.target()),
+                                                                   self.turn,
+                                                                   tmp_wot.ep.time[link] + self.sig_validity))
+                self.next_wot.remove_edge(self.next_wot.edge(int(link.source()), int(link.target())))
                 dropped_links.append(link)
 
         for link in dropped_links:
-            if link[0] in self.next_members and not self.can_join(self.next_wot, link[0]):
-                print("{0} : Left community".format(link[0]))
-                self.next_members.remove(link[0])
-                if link[0] in self.history:
-                    self.history[link[0]].append(self.turn)
+            if int(link.target()) in self.next_members and not self.can_join(self.next_wot, int(link.target())):
+                print("{0} : Left community".format(link.target()))
+                self.next_members.remove(int(link.target()))
+                print("Members : {0}".format(self.next_members))
+                if int(link.target()) in self.history:
+                    self.history[int(link.target())].append(self.turn)
 
         self.wot = self.next_wot
         self.members = self.next_members
@@ -209,7 +220,7 @@ class WoT:
         for n in self.history:
             if len(self.history[n]) % 2 != 0:
                 self.history[n].append(self.turn)
-        pos = graphviz_layout(self.wot, "twopi")
+        pos = graph_tool.draw.arf_layout(self.wot)
 
         for n in self.history:
             periods = list(zip(self.history[n], self.history[n][1:]))
@@ -230,6 +241,6 @@ class WoT:
 
             #txt = self.ax.text(pos[n][0], pos[n][1], self.history[n][0]*zscale, n[:5], 'z')
 
-        self.ax.set_xlim3d(-5, max([p[0] for p in pos.values()]))
-        self.ax.set_ylim3d(-5, max([p[1] for p in pos.values()]))
+        self.ax.set_xlim3d(0, 10)
+        self.ax.set_ylim3d(0, 10)
         self.ax.set_zlim3d(-5, (self.turn+1)*zscale)
