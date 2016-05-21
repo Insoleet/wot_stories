@@ -135,6 +135,7 @@ class WoT:
                     self.colors[to_idty] = next(self.color_iter)
                 except StopIteration:
                     self.color_iter = iter(colors.cnames.items())
+                    self.colors[to_idty] = next(self.color_iter)
 
             self.history[to_idty].append(self.turn)
             self.next_members.append(to_idty)
@@ -228,6 +229,7 @@ class WoT:
                 zline = linspace(p[0]*zscale, p[1]*zscale, nbpoints)
                 xline = linspace(pos[n][0], pos[n][0], nbpoints)
                 yline = linspace(pos[n][1], pos[n][1], nbpoints)
+                print(self.colors)
                 plot = self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[n][0], alpha=1/(i % 2 + 1))
 
         for link in self.past_links:
