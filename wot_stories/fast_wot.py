@@ -207,7 +207,6 @@ class WoT:
             if int(link.target()) in self.next_members and not self.can_join(self.next_wot, int(link.target())):
                 print("{0} : Left community".format(link.target()))
                 self.next_members.remove(int(link.target()))
-                print("Members : {0}".format(self.next_members))
                 if int(link.target()) in self.history:
                     self.history[int(link.target())].append(self.turn)
 
@@ -239,8 +238,31 @@ class WoT:
             if link[1] in self.colors:
                 self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[link[1]][0], alpha=0.1)
 
-            #txt = self.ax.text(pos[n][0], pos[n][1], self.history[n][0]*zscale, n[:5], 'z')
-
         self.ax.set_xlim3d(0, 10)
         self.ax.set_ylim3d(0, 10)
         self.ax.set_zlim3d(-5, (self.turn+1)*zscale)
+
+    def draw_turn(self, turn):
+
+        fig, ax_f = plt.subplots()
+        pos = graph_tool.draw.arf_layout(self.wot)
+
+        for n in self.history:
+            periods = list(zip(self.history[n], self.history[n][1:]))
+            for i, p in enumerate(periods):
+                if p[0] < turn < p[1]:
+                    nbpoints = abs(p[1] - p[0])
+                    xline = linspace(pos[n][0], pos[n][0], nbpoints)
+                    yline = linspace(pos[n][1], pos[n][1], nbpoints)
+                    ax_f.plot(xline, yline, color=self.colors[n][0], alpha=1 / (i % 2 + 1))
+
+        for link in self.past_links:
+            if link[0] < turn < link[0] + self.sig_validity:
+                nbpoints = abs(pos[link[2]][0] - pos[link[1]][1])
+                xline = linspace(pos[link[2]][0], pos[link[1]][0], nbpoints)
+                yline = linspace(pos[link[2]][1], pos[link[1]][1], nbpoints)
+                if link[1] in self.colors:
+                    ax_f.plot(xline, yline, color=self.colors[link[1]][0], alpha=0.1)
+
+        ax_f.set_xlim(0, 10)
+        ax_f.set_ylim(0, 10)
