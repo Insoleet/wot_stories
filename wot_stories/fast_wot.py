@@ -26,9 +26,9 @@ class WoT:
         self.xpercent = xpercent
         self.steps_max = steps_max
 
-        self.wot = {}
-        self.members = {}
-        self.identities = {}
+        self.wot = []
+        self.members = []
+        self.identities = []
         self.received_links = []
 
         #Block number
@@ -42,14 +42,72 @@ class WoT:
 
         self.colors = {}
         self.color_iter = iter(colors.cnames.items())
-        self.layouts = []
+
+    def load(self, dest):
+        with open(os.path.join(dest, "history.p"), "rb") as outfile:
+            self.history = pickle.load(outfile)
+
+        with open(os.path.join(dest, "past_links.p"), "rb") as outfile:
+            self.past_links = pickle.load(outfile)
+
+        with open(os.path.join(dest, "members.p"), "rb") as outfile:
+            self.members = pickle.load(outfile)
+
+        with open(os.path.join(dest, "identities.p"), "rb") as outfile:
+            self.identities = pickle.load(outfile)
+
+        with open(os.path.join(dest, "colors.p"), "rb") as outfile:
+            self.colors = pickle.load(outfile)
+
+        with open(os.path.join(dest, "attributes.p"), "rb") as outfile:
+            parameters = pickle.load(outfile)
+            self.sig_period = parameters["sig_period"]
+            self.sig_stock = parameters["sig_stock"]
+            self.sig_validity = parameters["sig_validity"]
+            self.sig_qty = parameters["sig_qty"]
+            self.xpercent = parameters["xpercent"]
+            self.steps_max = parameters["steps_max"]
+            self.turn = parameters["turn"]
+
+        self.wot = []
+        for i in range(0, self.turn+1):
+            self.wot.append(load_graph(os.path.join(dest, "wot", "wot{0}.gt".format(i))))
 
     def save(self, dest):
         try:
-            os.makedirs(dest)
+            os.makedirs(os.path.join(dest, "wot"))
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
+        with open(os.path.join(dest, "history.p"), "wb") as outfile:
+            pickle.dump(self.history, outfile)
+
+        with open(os.path.join(dest, "past_links.p"), "wb") as outfile:
+            pickle.dump(self.past_links, outfile)
+
+        with open(os.path.join(dest, "members.p"), "wb") as outfile:
+            pickle.dump(self.members, outfile)
+
+        with open(os.path.join(dest, "identities.p"), "wb") as outfile:
+            pickle.dump(self.identities, outfile)
+
+        with open(os.path.join(dest, "colors.p"), "wb") as outfile:
+            pickle.dump(self.colors, outfile)
+
+        with open(os.path.join(dest, "attributes.p"), "wb") as outfile:
+            parameters = {
+                'sig_period': self.sig_period,
+                'sig_stock': self.sig_stock,
+                'sig_validity': self.sig_validity,
+                'sig_qty': self.sig_qty,
+                'xpercent': self.xpercent,
+                'steps_max': self.steps_max,
+                'turn': self.turn
+            }
+            pickle.dump(parameters, outfile)
+
+        for i, w in enumerate(self.wot):
+            w.save(os.path.join(dest, "wot", "wot{0}.gt".format(i)))
 
     def initialize(self, nb_identities):
         """
@@ -57,10 +115,10 @@ class WoT:
         :param idties: List of pub_keys of identities (still not members)
         :param links: List of certifications ([issuer pub_key, certified pub_key], …)
         """
-        self.members[0] = []
-        self.identities[0] = []
+        self.members.append([])
+        self.identities.append([])
 
-        self.wot[0] = Graph(directed=True)
+        self.wot.append(Graph(directed=True))
         self.wot[0].ep.time = self.wot[0].new_edge_property("int")
         # Populate the graph with identities and certifications
         for idty in range(0, nb_identities):
@@ -108,9 +166,9 @@ class WoT:
         Do a copy of the current state of the Wot
         """
         self.received_links = []
-        self.wot[self.turn+1] = self.wot[self.turn].copy()
-        self.members[self.turn+1] = self.members[self.turn].copy()
-        self.identities[self.turn+1] = self.identities[self.turn].copy()
+        self.wot.append(self.wot[self.turn].copy())
+        self.members.append(self.members[self.turn].copy())
+        self.identities.append(self.identities[self.turn].copy())
 
     #@profile
     def add_identity(self):
@@ -192,8 +250,9 @@ class WoT:
         # Extract the list of all connected members to idty at steps_max via certificates (edges)
 
         linked_in_range = []
+        ind = computed_links.index(idty)
         for s in sentries:
-            if distances[s][computed_links.index(idty)] <= self.steps_max:
+            if distances[s][ind] <= self.steps_max:
                 linked_in_range.append(s)
 
         # Checks if idty is connected to at least xpercent of sentries
@@ -242,6 +301,7 @@ class WoT:
                                               target=computed_links,
                                               max_dist=self.steps_max,
                                               directed=True)
+
 
         for receiver in self.received_links:
             if receiver not in self.members[self.turn + 1] and self.can_join(self.wot[self.turn + 1],
@@ -326,8 +386,8 @@ class WoT:
 
     def display_graphs(self):
         fig, ax_f = plt.subplots()
-        nb_members = [len(m) for m in self.members.values()]
-        nb_identities = [len(i) for i in self.identities.values()]
+        nb_members = [len(m) for m in self.members]
+        nb_identities = [len(i) for i in self.identities]
         ax_f.plot(nb_members, color='blue')
         ax_f.plot(nb_identities, color='green')
 

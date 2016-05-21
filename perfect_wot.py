@@ -7,7 +7,7 @@ import logging
 #@profile
 def run():
     NMAX = 1000000000
-    NB_TURN = 160*12
+    NB_TURN = 2*12
     wot = WoT(sig_period=0, sig_stock=45, sig_validity=12, sig_qty=3, xpercent=0.9, steps_max=4)
     wot.initialize(4)
     individuals = [int(v) for v in wot.wot[0].vertices()]
@@ -47,13 +47,17 @@ def run():
         wot.next_turn()
     wot.end()
     wot.save('perfect')
-#
+
+def display():
+    wot = WoT(sig_period=0, sig_stock=45, sig_validity=12, sig_qty=3, xpercent=0.9, steps_max=4)
+    wot.load('perfect')
     wot.display_graphs()
     wot.draw()
-    #wot.draw_turn(10)
+    wot.draw_turn(10)
     plt.show()
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s:%(module)s:%(funcName)s:%(message)s',
                         level=logging.INFO)
     run()
+    display()
