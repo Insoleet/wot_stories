@@ -36,9 +36,10 @@ if __name__ == '__main__':
                                                      for v in others])
                             pond = (neighbours_array * members_array * need_certs_array) / \
                                    np.sum(neighbours_array * members_array * need_certs_array)
-                            new_link_id = np.random.choice(others, p=pond)
-                            wot.add_link(vertex, new_link_id)
-                            certs[vertex] += 1
+                            for i in range(0, 2):
+                                new_link_id = np.random.choice(others, p=pond)
+                                wot.add_link(vertex, new_link_id)
+                                certs[vertex] += 1
                     else:
                         print("No new cert for {0}".format(vertex))
         wot.next_turn()

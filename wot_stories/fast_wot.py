@@ -229,7 +229,6 @@ class WoT:
                 zline = linspace(p[0]*zscale, p[1]*zscale, nbpoints)
                 xline = linspace(pos[n][0], pos[n][0], nbpoints)
                 yline = linspace(pos[n][1], pos[n][1], nbpoints)
-                print(self.colors)
                 plot = self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[n][0], alpha=1/(i % 2 + 1))
 
         for link in self.past_links:
@@ -266,5 +265,5 @@ class WoT:
                 if link[1] in self.colors:
                     ax_f.plot(xline, yline, color=self.colors[link[1]][0], alpha=0.1)
 
-        ax_f.set_xlim(0, 10)
-        ax_f.set_ylim(0, 10)
+        ax_f.set_xlim(-10, 10)
+        ax_f.set_ylim(-10, 10)
