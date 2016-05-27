@@ -1,5 +1,5 @@
 from graph_tool.all import *
-from numpy import linspace
+from numpy import linspace, sqrt
 from matplotlib import pyplot as plt
 from matplotlib import colors
 from mpl_toolkits.mplot3d import Axes3D
@@ -33,9 +33,6 @@ class WoT:
 
         #Block number
         self.turn = 0
-
-        self.fig = plt.figure()
-        self.ax = self.fig.gca(projection='3d')
 
         self.history = {}       # { member_pubkey : [join_time, leave_time, join_time, leave_time, …] }
         self.past_links = []    # [(block_number, from_idty, to_idty),(…)]
@@ -73,6 +70,10 @@ class WoT:
         for i in range(0, self.turn+1):
             self.wot.append(load_graph(os.path.join(dest, "wot", "wot{0}.gt".format(i))))
 
+            print('\r[{0}{1}] {2:10.2f}% - Loading...'.format('#' * int(i / self.turn * 10),
+                  ' ' * (10 - (int(i / self.turn * 10))),
+                  (i/self.turn) * 100))
+
     def save(self, dest):
         try:
             os.makedirs(os.path.join(dest, "wot"))
@@ -105,7 +106,6 @@ class WoT:
                 'turn': self.turn
             }
             pickle.dump(parameters, outfile)
-
         for i, w in enumerate(self.wot):
             w.save(os.path.join(dest, "wot", "wot{0}.gt".format(i)))
 
@@ -302,7 +302,6 @@ class WoT:
                                               max_dist=self.steps_max,
                                               directed=True)
 
-
         for receiver in self.received_links:
             if receiver not in self.members[self.turn + 1] and self.can_join(self.wot[self.turn + 1],
                                                                                 sentries,
@@ -332,62 +331,71 @@ class WoT:
                 self.history[n].append(self.turn)
 
     def draw(self, zscale=1):
+
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
         pos = graph_tool.draw.arf_layout(self.wot[self.turn])
 
+        step = 0
+        size = len(self.history.keys())
         for n in self.history:
+            step = step + 1
             periods = list(zip(self.history[n], self.history[n][1:]))
             for i, p in enumerate(periods):
                 nbpoints = abs(p[1] - p[0])*zscale
                 zline = linspace(p[0]*zscale, p[1]*zscale, nbpoints)
                 xline = linspace(pos[n][0], pos[n][0], nbpoints)
                 yline = linspace(pos[n][1], pos[n][1], nbpoints)
-                plot = self.ax.plot(xline, zline, yline, zdir='y',
+                plot = ax.plot(xline, zline, yline, zdir='y',
                                     color=self.colors[n][0], alpha=abs(1/(((i+1) % 2) + 1)))
 
+            print('\r[{0}{1}] {2:10.2f}% - Rendering plots...'.format('#' * int(step / (2 * size) * 10),
+                  ' ' * (10 - (int(step / (2 * size) * 10))),
+                  (step / size) * 100))
+
+        step = 0
+        size = len(self.past_links)
         for link in self.past_links:
+            step = step + 1
             nbpoints = abs(pos[link[2]][0] - pos[link[1]][1])*100
             zline = linspace(link[0]*zscale, link[0]*zscale, nbpoints)
             xline = linspace(pos[link[2]][0], pos[link[1]][0], nbpoints)
             yline = linspace(pos[link[2]][1], pos[link[1]][1], nbpoints)
             if link[1] in self.colors:
-                self.ax.plot(xline, zline, yline, zdir='y', color=self.colors[link[1]][0], alpha=0.1)
+                ax.plot(xline, zline, yline, zdir='y', color=self.colors[link[1]][0], alpha=0.1)
 
-        self.ax.set_xlim3d(min([pos[v][0] for v in self.wot[self.turn].vertices()]),
+            print('\r[{0}{1}] {2:10.2f}% - Rendering links...'.format('#' * int(step / (2 * size) * 10 + 5),
+                  ' ' * (10 - (int(step / (2 * size * 10) + 5))),
+                  (step / size) * 50 + 50))
+
+        ax.set_xlim3d(min([pos[v][0] for v in self.wot[self.turn].vertices()]),
                             max([pos[v][0] for v in self.wot[self.turn].vertices()]))
-        self.ax.set_ylim3d(min([pos[v][1] for v in self.wot[self.turn].vertices()]),
+        ax.set_ylim3d(min([pos[v][1] for v in self.wot[self.turn].vertices()]),
                            max([pos[v][1] for v in self.wot[self.turn].vertices()]))
-        self.ax.set_zlim3d(-5, (self.turn+1)*zscale)
+        ax.set_zlim3d(-5, (self.turn+1)*zscale)
 
-    def draw_turn(self, turn):
-        fig, ax_f = plt.subplots()
-        pos = graph_tool.draw.arf_layout(self.wot[self.turn])
-
-        for link in self.past_links:
-            if link[0] <= turn <= link[0] + self.sig_validity:
-                nbpoints = abs(pos[link[2]][0] - pos[link[1]][1])*100
-                xline = linspace(pos[link[2]][0], pos[link[1]][0], nbpoints)
-                yline = linspace(pos[link[2]][1], pos[link[1]][1], nbpoints)
-                ax_f.plot(xline, yline, color=self.colors[link[1]][0])
-
-        logging.debug(self.history)
-        for n in self.history:
-            periods = list(zip(self.history[n], self.history[n][1:]))
-            for i, p in enumerate(periods):
-                if p[0] <= turn <= p[1]:
-                    if i % 2 == 0:
-                        plt.scatter(pos[n][0], pos[n][1], color=self.colors[n][0])
-                    elif i % 2 == 1:
-                        plt.scatter(pos[n][0], pos[n][1], color=self.colors[n][0], alpha=0.5)
-
-        self.ax.set_xlim(min([pos[v][0] for v in self.wot[self.turn].vertices()]),
-                            max([pos[v][0] for v in self.wot[self.turn].vertices()]))
-        self.ax.set_ylim(min([pos[v][1] for v in self.wot[self.turn].vertices()]),
-                           max([pos[v][1] for v in self.wot[self.turn].vertices()]))
+    def draw_turn(self, turn, outpath):
+        pos = graph_tool.draw.sfdp_layout(self.wot[turn], C=0.6, p=12)
+        deg = self.wot[turn].degree_property_map("in")
+        deg.a = 4 * (sqrt(deg.a) * 0.5 + 0.4)
+        ebet = betweenness(self.wot[turn])[1]
+        ebet.a /= ebet.a.max() / 10.
+        eorder = ebet.copy()
+        eorder.a *= -1
+        control = self.wot[turn].new_edge_property("vector<double>")
+        for e in self.wot[turn].edges():
+            d = sqrt(sum((pos[e.source()].a - pos[e.target()].a) ** 2)) / 5
+        control[e] = [0.3, d, 0.7, d]
+        graph_draw(self.wot[turn], pos=pos, vertex_size=deg, vertex_fill_color=deg, vorder=deg,
+            edge_color = ebet,
+            edge_control_points = control,  # some curvy edges
+            output = outpath + "turn {0}.png".format(turn))
 
     def display_graphs(self):
         fig, ax_f = plt.subplots()
         nb_members = [len(m) for m in self.members]
         nb_identities = [len(i) for i in self.identities]
+
         ax_f.plot(nb_members, color='blue')
         ax_f.plot(nb_identities, color='green')
 
