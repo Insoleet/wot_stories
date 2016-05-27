@@ -7,6 +7,7 @@ from itertools import product
 import logging
 import pickle
 import os, errno
+import asyncio
 
 class WoT:
     def __init__(self, sig_period, sig_stock, sig_validity, sig_qty, xpercent, steps_max):
@@ -256,7 +257,7 @@ class WoT:
         ind = computed_links.index(idty)
         for s in sentries:
             try:
-                if distances[s][ind] <= self.steps_max:
+                if self.steps_max == 0 or distances[s][ind] <= self.steps_max:
                     linked_in_range.append(s)
             except IndexError:
                 print(distances[s])
@@ -279,7 +280,7 @@ class WoT:
         return enough_certs and enough_sentries
 
     #@profile
-    def next_turn(self):
+    async def next_turn(self):
         """
         Updates the wot by removing expired links and members
         """
@@ -302,12 +303,22 @@ class WoT:
                     if self.wot[self.turn].vertex(m).out_degree() > self.ySentries(len(self.members[self.turn]))]
 
         distances = {}
-        for s in sentries:
-            distances[s] = graph_tool.topology.shortest_distance(self.wot[self.turn+1],
-                                              source=s,
-                                              target=computed_links,
-                                              max_dist=self.steps_max,
-                                              directed=True)
+        sentries_tasks = []
+        loop = asyncio.get_event_loop()
+        for (i, s) in enumerate(sentries):
+            distances[s] = sentries_tasks.append(loop.run_in_executor(None,
+                                graph_tool.topology.shortest_distance,
+                                              self.wot[self.turn+1],
+                                              s,
+                                              computed_links,
+                                              None, False,
+                                              self.steps_max,
+                                              True))
+
+        result = await asyncio.gather(*sentries_tasks)
+
+        for (i, s) in enumerate(sentries):
+            distances[s] = result[i]
 
         for receiver in self.received_links:
             if receiver not in self.members[self.turn + 1] and self.can_join(self.wot[self.turn + 1],
@@ -399,6 +410,11 @@ class WoT:
                    vertex_fill_color=self.wot[turn].type, vorder=self.wot[turn].type,
                     edge_color = ebet, # some curvy edges
                     output = outpath + "turn {0}.png".format(turn))
+
+    def draw_blockmodel(self, turn, outpath):
+        pos = graph_tool.draw.sfdp_layout(self.wot[turn], C=0.6, p=12)
+        state = minimize_nested_blockmodel_dl(self.wot[turn], deg_corr=True)
+        state.draw(pos=pos, output = outpath + "blocks {0}.png".format(turn))
 
     def display_graphs(self):
         fig, ax_f = plt.subplots()
