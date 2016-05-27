@@ -177,12 +177,12 @@ class WoT:
         :param idty: Public key of an individual
         :return:
         """
-        v = self.wot[self.turn].add_vertex()
+        v = self.wot[self.turn+1].add_vertex()
         logging.debug("{0} : New identity in the wot".format(int(v)))
 
         # Keep track of memberships in time
         if int(v) not in self.history:
-            self.history[int(v)] = [self.turn]
+            self.history[int(v)] = [self.turn+1]
             try:
                 self.colors[int(v)] = next(self.color_iter)
             except StopIteration:
@@ -201,6 +201,7 @@ class WoT:
         """
         if from_idty == to_idty:
             logging.debug("{0} -> {1} : Error : link on self")
+            return
 
         # Checks the issuer signatures "stock"
         vertex = self.wot[self.turn+1].vertex(from_idty)
@@ -217,7 +218,9 @@ class WoT:
 
         # Adds the certificate to the graph and keeps track
         logging.debug("{0} -> {1} : Adding certification".format(from_idty, to_idty))
-        edge = self.wot[self.turn+1].add_edge(from_idty, to_idty)
+        edge = self.wot[self.turn+1].edge(from_idty, to_idty)
+        if not edge:
+            edge = self.wot[self.turn+1].add_edge(from_idty, to_idty)
         self.wot[self.turn+1].ep.time[edge] = self.turn
         self.past_links.append((self.turn, from_idty, to_idty))
 
@@ -252,8 +255,12 @@ class WoT:
         linked_in_range = []
         ind = computed_links.index(idty)
         for s in sentries:
-            if distances[s][ind] <= self.steps_max:
-                linked_in_range.append(s)
+            try:
+                if distances[s][ind] <= self.steps_max:
+                    linked_in_range.append(s)
+            except IndexError:
+                print(distances[s])
+                print(ind)
 
         # Checks if idty is connected to at least xpercent of sentries
         enough_sentries = len(linked_in_range) >= len(sentries)*self.xpercent
@@ -376,20 +383,22 @@ class WoT:
 
     def draw_turn(self, turn, outpath):
         pos = graph_tool.draw.sfdp_layout(self.wot[turn], C=0.6, p=12)
-        deg = self.wot[turn].degree_property_map("in")
-        deg.a = 4 * (sqrt(deg.a) * 0.5 + 0.4)
+        self.wot[turn].type = self.wot[turn].new_vertex_property("double")
+        sentries = [m for m in self.members[turn]
+                    if self.wot[turn].vertex(m).out_degree() > self.ySentries(len(self.members[turn]))]
+
+        for v in self.wot[turn].vertices():
+            if v in sentries:
+                self.wot[turn].type[v] = 10
+            elif v in self.members[turn]:
+                self.wot[turn].type[v] = 5
+            else:
+                self.wot[turn].type[v] = 0
         ebet = betweenness(self.wot[turn])[1]
-        ebet.a /= ebet.a.max() / 10.
-        eorder = ebet.copy()
-        eorder.a *= -1
-        control = self.wot[turn].new_edge_property("vector<double>")
-        for e in self.wot[turn].edges():
-            d = sqrt(sum((pos[e.source()].a - pos[e.target()].a) ** 2)) / 5
-        control[e] = [0.3, d, 0.7, d]
-        graph_draw(self.wot[turn], pos=pos, vertex_size=deg, vertex_fill_color=deg, vorder=deg,
-            edge_color = ebet,
-            edge_control_points = control,  # some curvy edges
-            output = outpath + "turn {0}.png".format(turn))
+        graph_draw(self.wot[turn], pos=pos, vertex_size=self.wot[turn].type,
+                   vertex_fill_color=self.wot[turn].type, vorder=self.wot[turn].type,
+                    edge_color = ebet, # some curvy edges
+                    output = outpath + "turn {0}.png".format(turn))
 
     def display_graphs(self):
         fig, ax_f = plt.subplots()
