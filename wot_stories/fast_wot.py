@@ -393,7 +393,8 @@ class WoT:
         ax.set_zlim3d(-5, (self.turn+1)*zscale)
 
     def draw_turn(self, turn, outpath):
-        pos = graph_tool.draw.sfdp_layout(self.wot[turn], C=0.6, p=12)
+        #pos = graph_tool.draw.sfdp_layout(self.wot[turn], C=0.6, p=12)
+        pos = graph_tool.draw.arf_layout(self.wot[turn], d=10)
         self.wot[turn].type = self.wot[turn].new_vertex_property("double")
         sentries = [m for m in self.members[turn]
                     if self.wot[turn].vertex(m).out_degree() > self.ySentries(len(self.members[turn]))]
@@ -405,16 +406,17 @@ class WoT:
                 self.wot[turn].type[v] = 5
             else:
                 self.wot[turn].type[v] = 0
+        vbet = betweenness(self.wot[turn])[0]
         ebet = betweenness(self.wot[turn])[1]
-        graph_draw(self.wot[turn], pos=pos, vertex_size=self.wot[turn].type,
+        graph_draw(self.wot[turn], pos=pos, vertex_size=prop_to_size(vbet, mi=2, ma=15),
                    vertex_fill_color=self.wot[turn].type, vorder=self.wot[turn].type,
                     edge_color = ebet, # some curvy edges
-                    output = outpath + "turn {0}.png".format(turn))
+                    output = outpath + "turn {0}.svg".format(turn))
 
     def draw_blockmodel(self, turn, outpath):
         pos = graph_tool.draw.sfdp_layout(self.wot[turn], C=0.6, p=12)
         state = minimize_nested_blockmodel_dl(self.wot[turn], deg_corr=True)
-        state.draw(pos=pos, output = outpath + "blocks {0}.png".format(turn))
+        state.draw(pos=pos, output = outpath + "blocks {0}.svg".format(turn))
 
     def display_graphs(self):
         fig, ax_f = plt.subplots()
