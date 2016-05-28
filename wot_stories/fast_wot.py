@@ -1,5 +1,5 @@
 from graph_tool.all import *
-from numpy import linspace, sqrt
+from numpy import linspace, sqrt, median, average, std
 from matplotlib import pyplot as plt
 from matplotlib import colors
 from mpl_toolkits.mplot3d import Axes3D
@@ -420,11 +420,28 @@ class WoT:
 
     def display_graphs(self):
         fig, ax_f = plt.subplots()
+
+        newax = fig.add_axes(ax_f.get_position())
+        newax.patch.set_visible(False)
+
+        newax.yaxis.set_label_position('right')
+        newax.yaxis.set_ticks_position('right')
+
         nb_members = [len(m) for m in self.members]
         nb_identities = [len(i) for i in self.identities]
+
+        bt_average = [average(betweenness(w)[0].get_array()) for w in self.wot]
+        bt_mean = [median(betweenness(w)[0].get_array()) for w in self.wot]
+        bt_std = [std(betweenness(w)[0].get_array()) for w in self.wot]
+
+        newax.plot(bt_mean, color='black')
+        newax.plot(bt_average, color='red')
+        newax.plot(bt_std, color='purple')
 
         ax_f.plot(nb_members, color='blue')
         ax_f.plot(nb_identities, color='green')
 
         ax_f.set_ylim(-5, max(max(nb_members), max(nb_identities)) + 5)
+        newax.set_ylim(min(min(bt_mean), min(bt_average), min(bt_std))*1.1,
+                       max(max(bt_mean), max(bt_average), max(bt_std))*1.1)
         ax_f.set_xlim(-5, self.turn + 5)

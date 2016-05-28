@@ -12,14 +12,14 @@ async def run():
     def process(vertex):
         if vertex in wot.history and turn < wot.history[vertex][0] + 80 * 4:
             if 0 <= wot.wot[wot.turn].vertex(vertex).out_degree() < 45:
-                nearest_array = 1 / (1 + 3 * np.array(distance[vertex]))
+                nearest_array = 1 / (1 + 1* np.array(distance[vertex]))
                 pond = (nearest_array) / np.sum(nearest_array)
                 nb_members = len(wot.members[wot.turn])
                 nb_identities = len(wot.identities[wot.turn])
                 # pond = (100*nearest_array * members_array * 0.5*need_certs_array) / \
                 #       np.sum(100*nearest_array * members_array * 0.5*need_certs_array)
                 if turn % 3 == 0 \
-                        and nb_members / nb_identities > 0.7 \
+                        and nb_members / nb_identities > 0.5 \
                         and magnet[vertex] <= 0.2:
                     new_id = wot.add_identity()
                     wot.add_link(vertex, new_id)
@@ -28,8 +28,8 @@ async def run():
                     new_link_id = np.random.choice(wot.identities[wot.turn], p=pond)
                     wot.add_link(vertex, new_link_id)
 
-    wot = WoT(sig_period=0, sig_stock=24, sig_validity=4, sig_qty=3, xpercent=0.9, steps_max=3)
-    wot.initialize(4)
+    wot = WoT(sig_period=0, sig_stock=48, sig_validity=4, sig_qty=5, xpercent=0.9, steps_max=0)
+    wot.initialize(6)
     magnet = {}
     for i in wot.identities[0]:
         magnet[i] = np.random.pareto(1)
@@ -70,10 +70,10 @@ def display():
     for i in range(0, NB_TURN):
         if len(wot.members[i]) == maxlen:
             turn = i
-
+#
     for i in range(int(turn/2)-5, int(turn/2)):
         wot.draw_turn(i, "perfect")
-
+#
     for i in range(turn-5, turn):
         wot.draw_turn(i, "perfect")
     #wot.draw()
@@ -81,7 +81,7 @@ def display():
 
 async def main(loop):
     graph_tool.show_config()
-    #await run()
+    await run()
     display()
 
 if __name__ == '__main__':
